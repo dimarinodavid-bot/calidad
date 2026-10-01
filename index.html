@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Revisión de planta</title>
+<meta name="theme-color" content="#163049">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Revisión">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
+<style>
+:root{
+  --bg:#E9EDF1; --surface:#FFFFFF; --ink:#13202D; --muted:#5B6976;
+  --line:#C9D2DA; --panel:#163049; --panel-ink:#F3F6F9; --sun:#F4C430; --sun-ink:#1B1600;
+  --danger:#B42318; --ok:#1F7A4A; --field:#F6F8FA;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0D151D; --surface:#16212C; --ink:#E8EEF3; --muted:#93A3B1;
+    --line:#2A3846; --panel:#0A1C2E; --panel-ink:#E8EEF3; --field:#1C2935;
+    --danger:#F0705F; --ok:#5CC48A;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0D151D; --surface:#16212C; --ink:#E8EEF3; --muted:#93A3B1;
+  --line:#2A3846; --panel:#0A1C2E; --panel-ink:#E8EEF3; --field:#1C2935;
+  --danger:#F0705F; --ok:#5CC48A;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:17px;line-height:1.45;
+  -webkit-text-size-adjust:100%}
+.wrap{max-width:640px;margin:0 auto;padding:0 16px 120px}
+header.top{background:var(--panel);color:var(--panel-ink);padding:18px 16px 14px;
+  background-image:repeating-linear-gradient(90deg,transparent 0 46px,rgba(255,255,255,.05) 46px 48px),
+  repeating-linear-gradient(0deg,transparent 0 22px,rgba(255,255,255,.05) 22px 24px)}
+header.top .in{max-width:640px;margin:0 auto;display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:"Barlow Condensed","Roboto Condensed","Arial Narrow","Helvetica Neue",sans-serif;font-weight:700;font-size:30px;line-height:1;margin:0;letter-spacing:.2px}
+.count{font-family:"Barlow Condensed","Roboto Condensed","Arial Narrow","Helvetica Neue",sans-serif;font-weight:600;font-size:15px;opacity:.85;text-align:right}
+.count b{display:block;font-size:34px;line-height:1;color:var(--sun)}
+.tabs{display:flex;gap:0;margin:16px 0 18px;border:2px solid var(--panel);border-radius:10px;overflow:hidden}
+:root[data-theme="dark"] .tabs{border-color:var(--line)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .tabs{border-color:var(--line)}}
+.tabs button{flex:1;padding:12px 8px;border:0;background:var(--surface);color:var(--ink);font:600 16px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;cursor:pointer}
+.tabs button[aria-selected="true"]{background:var(--panel);color:var(--panel-ink)}
+label.f{display:block;font-weight:600;font-size:15px;margin:14px 0 6px;color:var(--muted)}
+input[type=text],input[type=search],textarea,select{width:100%;font:500 18px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:var(--ink);background:var(--field);
+  border:1.5px solid var(--line);border-radius:8px;padding:12px;min-height:50px}
+textarea{min-height:96px;resize:vertical}
+input:focus,textarea:focus,select:focus,button:focus-visible{outline:3px solid var(--sun);outline-offset:1px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.photos{display:flex;flex-wrap:wrap;gap:8px;margin-top:8px}
+.ph{position:relative;width:84px;height:84px;border-radius:8px;overflow:hidden;background:var(--line)}
+.ph img{width:100%;height:100%;object-fit:cover;display:block}
+.ph button{position:absolute;top:3px;right:3px;width:28px;height:28px;border-radius:50%;border:0;background:rgba(0,0,0,.65);color:#fff;font-size:16px;line-height:28px;cursor:pointer}
+.ph .busy{position:absolute;inset:0;display:grid;place-items:center;background:rgba(0,0,0,.45);color:#fff;font-size:13px}
+.photo-btns{display:flex;gap:8px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+  font:600 16px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;border-radius:8px;padding:12px 14px;min-height:48px;cursor:pointer}
+.btn.primary{background:var(--sun);color:var(--sun-ink);border-color:var(--sun);font-size:18px;width:100%;margin-top:20px;min-height:56px}
+.btn.primary:disabled{opacity:.55}
+.btn.ghost{background:transparent}
+.btn.danger{color:var(--danger);border-color:var(--danger);background:transparent}
+.photo-btns .btn{flex:1}
+.note{font-size:14px;color:var(--muted);margin:10px 0 0}
+.toast{position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--panel);color:var(--panel-ink);
+  padding:12px 18px;border-radius:10px;font-weight:600;box-shadow:0 6px 24px rgba(0,0,0,.25);z-index:20;max-width:90vw;display:none}
+.toast.show{display:block}
+.filters{display:flex;gap:8px;align-items:center;margin-bottom:12px}
+.filters select{flex:1}
+.list{display:flex;flex-direction:column;gap:10px}
+.item{background:var(--surface);border:1px solid var(--line);border-left:6px solid var(--panel);border-radius:8px;padding:12px;display:grid;grid-template-columns:1fr auto;gap:10px;cursor:pointer;text-align:left;color:inherit;font:inherit;width:100%}
+.item .tags{font-family:"Barlow Condensed","Roboto Condensed","Arial Narrow","Helvetica Neue",sans-serif;font-weight:600;font-size:17px;display:flex;flex-wrap:wrap;gap:4px 14px}
+.item .tags span{white-space:nowrap}
+.item .tags small{color:var(--muted);font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:500;font-size:13px;margin-right:3px}
+.item .desc{margin-top:4px;overflow-wrap:anywhere}
+.item .meta{font-size:13px;color:var(--muted);margin-top:4px}
+.item .thumb{width:64px;height:64px;border-radius:6px;object-fit:cover;background:var(--line)}
+.empty{text-align:center;color:var(--muted);padding:36px 12px;border:2px dashed var(--line);border-radius:10px}
+.exportbar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));z-index:10}
+.exportbar .in{max-width:640px;margin:0 auto;display:flex;gap:10px;align-items:center}
+.exportbar .btn{flex:1;background:var(--panel);color:var(--panel-ink);border-color:var(--panel);min-height:54px;font-size:17px}
+.editing{background:var(--sun);color:var(--sun-ink);border-radius:8px;padding:10px 12px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}
+.viewer{position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:30;display:none;align-items:center;justify-content:center;padding:20px}
+.viewer.show{display:flex}
+.viewer img{max-width:100%;max-height:100%;object-fit:contain}
+.seg{display:grid;grid-template-columns:1fr 1fr;border:1.5px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;background:var(--field);color:var(--ink);font:600 16px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;min-height:50px;cursor:pointer}
+.seg button+button{border-left:1.5px solid var(--line)}
+.seg button[aria-pressed="true"][data-v="pendiente"]{background:var(--danger);color:#fff}
+.seg button[aria-pressed="true"][data-v="resuelto"]{background:var(--ok);color:#fff}
+.item.resuelto{border-left-color:var(--ok)}
+.item.pendiente{border-left-color:var(--danger)}
+.badge{display:inline-block;font:600 12px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:2px 8px;border-radius:99px;color:#fff;margin-left:6px;vertical-align:2px}
+.badge.pendiente{background:var(--danger)} .badge.resuelto{background:var(--ok)}
+.count small{display:block;font-size:13px;opacity:.8;margin-top:2px}
+.hidden{display:none!important}
+@media (prefers-reduced-motion:no-preference){.toast.show{animation:pop .18s ease-out}@keyframes pop{from{opacity:0;transform:translate(-50%,8px)}to{opacity:1;transform:translate(-50%,0)}}}
+</style>
+</head>
+<body>
+<header class="top"><div class="in">
+  <h1>Revisión<br>de planta</h1>
+  <div class="count"><b id="pendCount">0</b>pendientes<small id="totalCount">de 0</small></div>
+</div></header>
+
+<div class="wrap">
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tabNew" aria-selected="true">Nueva incidencia</button>
+    <button role="tab" id="tabList" aria-selected="false">Listado</button>
+  </div>
+
+  <!-- FORM -->
+  <section id="viewNew">
+    <div id="editBanner" class="editing hidden"><span>Editando incidencia</span><button class="btn ghost" id="cancelEdit" style="min-height:36px;padding:6px 10px">Cancelar</button></div>
+    <label class="f" for="obra">Obra</label>
+    <input type="text" id="obra" list="obrasList" autocomplete="off" placeholder="Ej. Tabernas 1">
+    <datalist id="obrasList"></datalist>
+    <div class="row2">
+      <div><label class="f" for="pastilla">Nº pastilla</label>
+        <input type="text" id="pastilla" inputmode="numeric" autocomplete="off"></div>
+      <div><label class="f" for="tracker">Nº tracker</label>
+        <input type="text" id="tracker" inputmode="numeric" autocomplete="off"></div>
+    </div>
+    <label class="f" for="desc">Descripción</label>
+    <textarea id="desc" placeholder="Qué has visto"></textarea>
+    <label class="f">Estado</label>
+    <div class="seg" id="estadoSeg" role="group" aria-label="Estado">
+      <button type="button" data-v="pendiente" aria-pressed="true">Pendiente</button>
+      <button type="button" data-v="resuelto" aria-pressed="false">Resuelto</button>
+    </div>
+    <label class="f">Fotos</label>
+    <div class="photo-btns">
+      <button class="btn" id="btnCam" type="button">📷 Hacer foto</button>
+      <button class="btn" id="btnGal" type="button">🖼️ Galería</button>
+    </div>
+    <input type="file" id="fileCam" accept="image/*" capture="environment" class="hidden">
+    <input type="file" id="fileGal" accept="image/*" multiple class="hidden">
+    <div class="photos" id="formPhotos"></div>
+    <button class="btn primary" id="btnSave" type="button">Guardar incidencia</button>
+    <button class="btn danger hidden" id="btnDelete" type="button" style="width:100%;margin-top:10px">Eliminar incidencia</button>
+    <p class="note">Obra y pastilla se quedan puestas para la siguiente incidencia.</p>
+    <p class="note">Todo se guarda en este móvil y funciona sin cobertura. Descarga el Excel al terminar cada revisión como copia.</p>
+  </section>
+
+  <!-- LIST -->
+  <section id="viewList" class="hidden">
+    <div class="filters">
+      <select id="filterObra"><option value="">Todas las obras</option></select>
+      <select id="filterEstado"><option value="">Todos</option><option value="pendiente">Pendientes</option><option value="resuelto">Resueltos</option></select>
+    </div>
+    <input type="search" id="search" placeholder="Buscar tracker, pastilla o texto" style="margin-bottom:12px">
+    <div class="list" id="list"></div>
+  </section>
+</div>
+
+<div class="exportbar"><div class="in">
+  <button class="btn" id="btnExport" type="button">Descargar Excel</button>
+  <button class="btn hidden" id="btnShare" type="button">Enviar Excel</button>
+</div></div>
+
+<div class="viewer" id="viewer"><img id="viewerImg" alt="Foto de la incidencia"></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+  let items = [];            // {id, obra, pastilla, tracker, desc, estado, photos:[{thumb,w,h,full(Blob)}], createdAt}
+  let formPhotos = [];
+  let editingId = null;
+  let estado = 'pendiente';
+  let idb = null;
+  const LS_LAST = 'revision-planta-last';
+  let lastFile = null;
+
+  /* ---------- IndexedDB ---------- */
+  function openDB(){ return new Promise((res,rej)=>{ const r=indexedDB.open('revision-planta',1);
+    r.onupgradeneeded=()=>{ r.result.createObjectStore('items',{keyPath:'id'}); };
+    r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); }); }
+  function tx(mode,fn){ return new Promise((res,rej)=>{ const t=idb.transaction('items',mode); const s=t.objectStore('items'); const out=fn(s);
+    t.oncomplete=()=>res(out&&out.result!==undefined?out.result:undefined); t.onerror=()=>rej(t.error); t.onabort=()=>rej(t.error); }); }
+  async function loadAll(){ items=(await tx('readonly',s=>s.getAll())||[]).sort((a,b)=>b.createdAt-a.createdAt); render(); }
+  async function putItem(it){ await tx('readwrite',s=>s.put(it)); await loadAll(); }
+  async function delItem(id){ await tx('readwrite',s=>s.delete(id)); await loadAll(); }
+
+  /* ---------- utils ---------- */
+  function toast(msg){ const t=$('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(toast._t); toast._t=setTimeout(()=>t.classList.remove('show'),2800); }
+  function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString('es-ES',{day:'2-digit',month:'2-digit',year:'numeric'})+' '+d.toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'}); }
+  function esc(s){ return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+  function cmpNum(a,b){ return String(a??'').localeCompare(String(b??''),'es',{numeric:true}); }
+  function est(i){ return i.estado==='resuelto'?'resuelto':'pendiente'; }
+  function setEstado(v){ estado=v; document.querySelectorAll('#estadoSeg button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.v===v)); }
+  function loadImage(file){ return new Promise((res,rej)=>{ const u=URL.createObjectURL(file); const i=new Image(); i.onload=()=>res(i); i.onerror=rej; i.src=u; }); }
+  function resize(img,max,q){ const s=Math.min(1,max/Math.max(img.naturalWidth,img.naturalHeight));
+    const w=Math.round(img.naturalWidth*s), h=Math.round(img.naturalHeight*s);
+    const c=document.createElement('canvas'); c.width=w; c.height=h; c.getContext('2d').drawImage(img,0,0,w,h);
+    return {dataUrl:c.toDataURL('image/jpeg',q),w,h,canvas:c}; }
+  function canvasBlob(c,q){ return new Promise(r=>c.toBlob(r,'image/jpeg',q)); }
+
+  function loadLast(){ try{ const l=JSON.parse(localStorage.getItem(LS_LAST)||'{}'); if(l.obra) $('obra').value=l.obra; if(l.pastilla) $('pastilla').value=l.pastilla; }catch(e){} }
+  function saveLast(){ try{ localStorage.setItem(LS_LAST,JSON.stringify({obra:$('obra').value.trim(),pastilla:$('pastilla').value.trim()})); }catch(e){} }
+
+  /* ---------- render ---------- */
+  function obras(){ return [...new Set(items.map(i=>i.obra).filter(Boolean))].sort(cmpNum); }
+  function renderObras(){ const os=obras();
+    $('obrasList').innerHTML=os.map(o=>`<option value="${esc(o)}">`).join('');
+    const sel=$('filterObra'), cur=sel.value;
+    sel.innerHTML='<option value="">Todas las obras</option>'+os.map(o=>`<option value="${esc(o)}">${esc(o)}</option>`).join('');
+    sel.value=os.includes(cur)?cur:''; }
+  function filtered(){ const o=$('filterObra').value, fe=$('filterEstado').value, q=$('search').value.trim().toLowerCase();
+    return items.filter(i=>(!o||i.obra===o)&&(!fe||est(i)===fe)&&(!q||[i.tracker,i.pastilla,i.desc,i.obra].join(' ').toLowerCase().includes(q))); }
+  function render(){
+    $('pendCount').textContent=items.filter(i=>est(i)==='pendiente').length;
+    $('totalCount').textContent='de '+items.length+' incidencias';
+    $('tabList').textContent=`Listado (${items.length})`;
+    renderObras();
+    const list=filtered(), el=$('list');
+    if(!items.length){ el.innerHTML='<div class="empty">Aún no hay incidencias.<br>Añade la primera desde “Nueva incidencia”.</div>'; return; }
+    if(!list.length){ el.innerHTML='<div class="empty">Nada coincide con el filtro.</div>'; return; }
+    el.innerHTML=list.map(i=>{ const p=i.photos&&i.photos[0];
+      return `<button class="item ${est(i)}" data-id="${esc(i.id)}"><div>
+        <div class="tags"><span><small>Obra</small>${esc(i.obra||'—')}</span><span><small>Pastilla</small>${esc(i.pastilla||'—')}</span><span><small>Tracker</small>${esc(i.tracker||'—')}</span></div>
+        <div class="desc">${esc(i.desc||'')}</div>
+        <div class="meta">${fmtDate(i.createdAt)}<span class="badge ${est(i)}">${est(i)==='resuelto'?'Resuelto':'Pendiente'}</span>${i.photos&&i.photos.length?` · ${i.photos.length} foto${i.photos.length>1?'s':''}`:''}</div>
+      </div>${p?`<img class="thumb" src="${esc(p.thumb)}" alt="">`:'<span></span>'}</button>`; }).join('');
+  }
+  function renderFormPhotos(){ $('formPhotos').innerHTML=formPhotos.map((p,k)=>`<div class="ph"><img src="${esc(p.thumb)}" alt="Foto ${k+1}" data-k="${k}">
+    <button type="button" aria-label="Quitar foto" data-rm="${k}">×</button></div>`).join(''); }
+
+  /* ---------- tabs ---------- */
+  function showTab(w){ const n=w==='new'; $('tabNew').setAttribute('aria-selected',n); $('tabList').setAttribute('aria-selected',!n);
+    $('viewNew').classList.toggle('hidden',!n); $('viewList').classList.toggle('hidden',n); window.scrollTo(0,0); }
+  $('tabNew').onclick=()=>showTab('new'); $('tabList').onclick=()=>showTab('list');
+
+  /* ---------- photos ---------- */
+  $('estadoSeg').onclick=e=>{ const b=e.target.closest('button'); if(b) setEstado(b.dataset.v); };
+  $('btnCam').onclick=()=>$('fileCam').click(); $('btnGal').onclick=()=>$('fileGal').click();
+  async function addFiles(files){ for(const f of files){ try{
+      const img=await loadImage(f); const t=resize(img,480,0.62); const big=resize(img,1600,0.8);
+      const full=await canvasBlob(big.canvas,0.8);
+      formPhotos.push({thumb:t.dataUrl,w:t.w,h:t.h,full}); renderFormPhotos();
+    }catch(e){ toast('No se pudo leer esa imagen.'); } } }
+  $('fileCam').onchange=e=>{ addFiles([...e.target.files]); e.target.value=''; };
+  $('fileGal').onchange=e=>{ addFiles([...e.target.files]); e.target.value=''; };
+  $('formPhotos').onclick=e=>{ const rm=e.target.closest('[data-rm]'); if(rm){ formPhotos.splice(+rm.dataset.rm,1); renderFormPhotos(); return; }
+    const im=e.target.closest('img[data-k]'); if(im){ const p=formPhotos[+im.dataset.k]; openViewer(p.full?URL.createObjectURL(p.full):p.thumb); } };
+  function openViewer(src){ $('viewerImg').src=src; $('viewer').classList.add('show'); }
+  $('viewer').onclick=()=>$('viewer').classList.remove('show');
+
+  /* ---------- form ---------- */
+  function resetForm(keep){ editingId=null; formPhotos=[]; renderFormPhotos(); $('tracker').value=''; $('desc').value=''; setEstado('pendiente');
+    if(!keep) loadLast(); $('editBanner').classList.add('hidden'); $('btnDelete').classList.add('hidden'); $('btnSave').textContent='Guardar incidencia';
+    delete $('btnDelete').dataset.armed; $('btnDelete').textContent='Eliminar incidencia'; }
+  function startEdit(id){ const i=items.find(x=>x.id===id); if(!i) return; editingId=id;
+    $('obra').value=i.obra||''; $('pastilla').value=i.pastilla||''; $('tracker').value=i.tracker||''; $('desc').value=i.desc||''; setEstado(est(i));
+    formPhotos=(i.photos||[]).map(p=>({...p})); renderFormPhotos();
+    $('editBanner').classList.remove('hidden'); $('btnDelete').classList.remove('hidden'); $('btnSave').textContent='Guardar cambios'; showTab('new'); }
+  $('list').onclick=e=>{ const b=e.target.closest('.item'); if(b) startEdit(b.dataset.id); };
+  $('cancelEdit').onclick=()=>resetForm(false);
+
+  let saving=false;
+  $('btnSave').onclick=async()=>{ if(saving) return;
+    const rec={obra:$('obra').value.trim(),pastilla:$('pastilla').value.trim(),tracker:$('tracker').value.trim(),desc:$('desc').value.trim(),estado,
+      photos:formPhotos.map(p=>({thumb:p.thumb,w:p.w,h:p.h,full:p.full||null}))};
+    if(!rec.tracker&&!rec.desc){ toast('Añade al menos el nº de tracker o una descripción.'); return; }
+    saving=true; $('btnSave').disabled=true;
+    try{
+      if(editingId){ const old=items.find(x=>x.id===editingId); rec.id=editingId; rec.createdAt=old?old.createdAt:Date.now(); rec.updatedAt=Date.now();
+        await putItem(rec); toast('Cambios guardados'); resetForm(false); showTab('list'); }
+      else{ rec.id='i'+Date.now().toString(36)+Math.random().toString(36).slice(2,6); rec.createdAt=Date.now();
+        await putItem(rec); saveLast(); toast('Incidencia guardada'); resetForm(true); }
+    }catch(e){ toast('No se pudo guardar: el móvil puede estar sin espacio.'); }
+    finally{ saving=false; $('btnSave').disabled=false; } };
+  $('btnDelete').onclick=async()=>{ const b=$('btnDelete');
+    if(!b.dataset.armed){ b.dataset.armed='1'; b.textContent='Toca otra vez para eliminar'; setTimeout(()=>{ if(b.dataset.armed){ delete b.dataset.armed; b.textContent='Eliminar incidencia'; } },4000); return; }
+    try{ await delItem(editingId); toast('Incidencia eliminada'); resetForm(false); showTab('list'); }catch(e){ toast('No se pudo eliminar.'); } };
+
+  /* ---------- Excel ---------- */
+  $('filterObra').onchange=render; $('filterEstado').onchange=render; $('search').oninput=render;
+
+  async function buildExcel(){
+    const list=filtered().slice().sort((a,b)=>cmpNum(a.obra,b.obra)||cmpNum(a.pastilla,b.pastilla)||cmpNum(a.tracker,b.tracker)||a.createdAt-b.createdAt);
+    if(!list.length){ toast('No hay incidencias para exportar.'); return null; }
+    if(!window.ExcelJS){ toast('Abre la app una vez con cobertura para activar el Excel.'); return null; }
+    const wb=new ExcelJS.Workbook(); wb.creator='Revisión de planta';
+    const ws=wb.addWorksheet('Incidencias',{views:[{state:'frozen',ySplit:1}]});
+    const maxPh=Math.min(3,Math.max(0,...list.map(i=>(i.photos||[]).length)));
+    const cols=[{header:'Nº',key:'n',width:6},{header:'Fecha',key:'f',width:17},{header:'Obra',key:'obra',width:18},{header:'Pastilla',key:'pastilla',width:11},
+      {header:'Tracker',key:'tracker',width:11},{header:'Descripción',key:'desc',width:48},{header:'Estado',key:'estado',width:12},{header:'Nº fotos',key:'nf',width:9}];
+    for(let k=0;k<maxPh;k++) cols.push({header:'Foto '+(k+1),key:'p'+k,width:22});
+    ws.columns=cols;
+    const head=ws.getRow(1); head.font={bold:true,color:{argb:'FFFFFFFF'}}; head.height=22;
+    head.eachCell(c=>{ c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF163049'}}; c.alignment={vertical:'middle'}; });
+    ws.autoFilter={from:'A1',to:{row:1,column:cols.length}};
+    list.forEach((i,idx)=>{
+      const r=ws.addRow({n:idx+1,f:fmtDate(i.createdAt),obra:i.obra,pastilla:i.pastilla,tracker:i.tracker,desc:i.desc,estado:est(i)==='resuelto'?'Resuelto':'Pendiente',nf:(i.photos||[]).length});
+      r.alignment={vertical:'top',wrapText:true};
+      const ec=r.getCell('estado'); ec.font={bold:true,color:{argb:'FFFFFFFF'}}; ec.fill={type:'pattern',pattern:'solid',fgColor:{argb:est(i)==='resuelto'?'FF1F7A4A':'FFB42318'}};
+      const phs=(i.photos||[]).slice(0,3); if(phs.length) r.height=92;
+      phs.forEach((p,k)=>{ try{ const id=wb.addImage({base64:p.thumb,extension:'jpeg'}); const H=110,W=Math.round(H*((p.w||4)/(p.h||3))); const sc=Math.min(1,150/W);
+        ws.addImage(id,{tl:{col:8+k+0.05,row:r.number-1+0.05},ext:{width:Math.round(W*sc),height:Math.round(H*sc)}}); }catch(e){} });
+    });
+    const rs=wb.addWorksheet('Resumen');
+    rs.columns=[{header:'Obra',key:'obra',width:22},{header:'Pastilla',key:'pastilla',width:12},{header:'Incidencias',key:'c',width:13},{header:'Pendientes',key:'pe',width:12},{header:'Resueltas',key:'re',width:12},{header:'Trackers afectados',key:'t',width:40}];
+    const g=new Map();
+    list.forEach(i=>{ const k=(i.obra||'—')+'\u0000'+(i.pastilla||'—'); if(!g.has(k)) g.set(k,{obra:i.obra||'—',pastilla:i.pastilla||'—',c:0,pe:0,re:0,t:new Set()});
+      const x=g.get(k); x.c++; if(est(i)==='resuelto') x.re++; else x.pe++; if(i.tracker) x.t.add(i.tracker); });
+    const byObra=new Map();
+    [...g.values()].sort((a,b)=>cmpNum(a.obra,b.obra)||cmpNum(a.pastilla,b.pastilla)).forEach(x=>{
+      rs.addRow({obra:x.obra,pastilla:x.pastilla,c:x.c,pe:x.pe,re:x.re,t:[...x.t].sort(cmpNum).join(', ')}).alignment={wrapText:true,vertical:'top'};
+      const b=byObra.get(x.obra)||{c:0,pe:0,re:0}; b.c+=x.c; b.pe+=x.pe; b.re+=x.re; byObra.set(x.obra,b); });
+    rs.addRow([]);
+    byObra.forEach((b,o)=>{ rs.addRow({obra:'Total '+o,c:b.c,pe:b.pe,re:b.re}).font={bold:true}; });
+    rs.addRow({obra:'TOTAL',c:list.length,pe:list.filter(i=>est(i)==='pendiente').length,re:list.filter(i=>est(i)==='resuelto').length}).font={bold:true};
+    const rh=rs.getRow(1); rh.font={bold:true,color:{argb:'FFFFFFFF'}}; rh.eachCell(c=>{ c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF163049'}}; });
+    const buf=await wb.xlsx.writeBuffer();
+    const o=$('filterObra').value, d=new Date();
+    const ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+    const name='Revision_'+(o?o.replace(/[^\w\-áéíóúñÁÉÍÓÚÑ ]/g,'').replace(/\s+/g,'_')+'_':'')+ds+'.xlsx';
+    return new File([buf],name,{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  }
+  async function withBusy(btn,label,fn){ const t=btn.textContent; btn.disabled=true; btn.textContent=label; try{ await fn(); }finally{ btn.disabled=false; btn.textContent=t; } }
+  $('btnExport').onclick=()=>withBusy($('btnExport'),'Preparando…',async()=>{
+    try{ const f=await buildExcel(); if(!f) return;
+      const u=URL.createObjectURL(f); const a=document.createElement('a'); a.href=u; a.download=f.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(u),30000); toast('Excel descargado'); }
+    catch(e){ toast('No se pudo generar el Excel.'); } });
+  $('btnShare').onclick=()=>withBusy($('btnShare'),'Preparando…',async()=>{
+    try{ const f=await buildExcel(); if(!f) return;
+      if(navigator.canShare&&navigator.canShare({files:[f]})) await navigator.share({files:[f],title:f.name});
+      else toast('Este móvil no permite enviar el archivo; usa Descargar Excel.'); }
+    catch(e){ if(e&&e.name!=='AbortError') toast('No se pudo enviar el Excel.'); } });
+  try{ const probe=new File([''],'x.xlsx',{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+    if(navigator.canShare&&navigator.canShare({files:[probe]})) $('btnShare').classList.remove('hidden'); }catch(e){}
+
+  /* ---------- boot ---------- */
+  loadLast(); render();
+  if('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(()=>{});
+  if(navigator.storage&&navigator.storage.persist) navigator.storage.persist().catch(()=>{});
+  openDB().then(d=>{ idb=d; return loadAll(); }).catch(()=>toast('Este navegador no permite guardar datos. Abre la app desde la pantalla de inicio.'));
+})();
+</script>
+</body>
+</html>
