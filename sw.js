@@ -1,4 +1,4 @@
-const CACHE = 'revision-planta-v2';
+const CACHE = 'revision-planta-v3';
 const ASSETS = [
   './', './index.html', './manifest.webmanifest',
   './icon-192.png', './icon-512.png', './apple-touch-icon.png',
