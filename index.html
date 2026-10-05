@@ -11,8 +11,8 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Revisión">
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="icon-192.png">
-<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon-192-v2.png">
+<link rel="apple-touch-icon" href="apple-touch-icon-v2.png">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.4.0/exceljs.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js" defer></script>
@@ -377,7 +377,7 @@ input[type=radio]{accent-color:var(--brand);width:16px;height:16px}
     <div class="card">
       <h2>Versión</h2>
       <p style="margin:0 0 8px"><b style="color:var(--ink)">Versión <span data-appver></span></b> · <span id="appDate"></span></p>
-      <p style="margin:0">Novedades: nuevo icono con el símbolo de Suncraft (también en la cabecera).</p>
+      <p style="margin:0">Novedades: el icono nuevo se aplica al reinstalar y las actualizaciones llegan a la primera apertura con cobertura.</p>
     </div>
   </section>
 </main>
@@ -430,7 +430,7 @@ input[type=radio]{accent-color:var(--brand);width:16px;height:16px}
 (function(){
 'use strict';
 const $=id=>document.getElementById(id);
-const APP_VERSION={v:'4.3',date:'05/10/2026'};
+const APP_VERSION={v:'4.4',date:'05/10/2026'};
 const TIPOS=['Tornillería / apriete','Cableado / conexiones','Módulo dañado','Estructura / hincado','Motor / actuador','Seguimiento / posición','Limpieza / vegetación','Seguridad','Otro'];
 const CRIT={leve:'Leve',media:'Media',grave:'Grave'};
 const XLSX_MIME='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
