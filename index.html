@@ -288,9 +288,9 @@ input[type=radio]{accent-color:var(--brand);width:16px;height:16px}
       <div class="fld"><select id="sendObra"><option value="">Todas las obras</option></select></div>
       <div class="stack">
         <button class="btn primary" id="btnSendData" type="button">Enviar mis datos</button>
-        <button class="btn" id="btnImportData" type="button">Importar datos de compañeros</button>
+        <button class="btn" id="btnImportData" type="button">Importar datos o Excel de compañeros</button>
       </div>
-      <input type="file" id="fileData" accept=".json,application/json" multiple class="hidden">
+      <input type="file" id="fileData" accept=".json,application/json,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" multiple class="hidden">
       <p class="note" id="dataInfo"></p>
     </div>
 
@@ -635,15 +635,15 @@ async function buildExcelBuffer(list){
   const cols=[{header:'Nº',key:'n',width:6},{header:'Fecha',key:'f',width:17},{header:'Inspector',key:'insp',width:16},{header:'Obra',key:'obra',width:16},{header:'Pastilla',key:'pastilla',width:10},
     {header:'Tracker',key:'tracker',width:10},{header:'Tipo',key:'tipo',width:22},{header:'Criticidad',key:'crit',width:11},{header:'Descripción',key:'desc',width:44},{header:'Estado',key:'estado',width:11},
     {header:'Fecha cierre',key:'fc',width:17},{header:'Cerrado por',key:'cp',width:16},{header:'Comentario cierre',key:'nc',width:30},{header:'Ubicación',key:'loc',width:16},
-    {header:'Foto 1',key:'p0',width:22},{header:'Foto 2',key:'p1',width:22},{header:'Después',key:'p2',width:22}];
-  ws.columns=cols;
+    {header:'Foto 1',key:'p0',width:22},{header:'Foto 2',key:'p1',width:22},{header:'Después',key:'p2',width:22},{header:'ID',key:'id',width:12,hidden:true},{header:'Actualizado',key:'upd',width:12,hidden:true},{header:'Lat',key:'lat',width:10,hidden:true},{header:'Lng',key:'lng',width:10,hidden:true}];
+  ws.columns=cols; ['id','upd','lat','lng'].forEach(k=>ws.getColumn(k).hidden=true);
   const head=ws.getRow(1); head.font={bold:true,color:{argb:'FFFFFFFF'}}; head.height=22;
   head.eachCell(c=>{ c.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF163049'}}; c.alignment={vertical:'middle'}; });
   ws.autoFilter={from:'A1',to:{row:1,column:cols.length}};
   const critColor={leve:'FFC9A100',media:'FFD46A12',grave:'FF7A1010'};
   list.forEach((i,idx)=>{
     const r=ws.addRow({n:idx+1,f:fmtDate(i.createdAt),insp:i.inspector||'',obra:i.obra,pastilla:i.pastilla,tracker:i.tracker,tipo:i.tipo||'',crit:CRIT[critOf(i)],desc:i.desc,
-      estado:est(i)==='resuelto'?'Resuelto':'Pendiente',fc:est(i)==='resuelto'?fmtDate(i.fechaCierre):'',cp:est(i)==='resuelto'?(i.cerradoPor||''):'',nc:est(i)==='resuelto'?(i.notaCierre||''):''});
+      estado:est(i)==='resuelto'?'Resuelto':'Pendiente',fc:est(i)==='resuelto'?fmtDate(i.fechaCierre):'',cp:est(i)==='resuelto'?(i.cerradoPor||''):'',nc:est(i)==='resuelto'?(i.notaCierre||''):'',id:i.id,upd:i.updatedAt||i.createdAt,lat:i.loc?i.loc.lat:'',lng:i.loc?i.loc.lng:''});
     r.alignment={vertical:'top',wrapText:true};
     const ec=r.getCell('estado'); ec.font={bold:true,color:{argb:'FFFFFFFF'}}; ec.fill={type:'pattern',pattern:'solid',fgColor:{argb:est(i)==='resuelto'?'FF1F7A4A':'FFB42318'}};
     const cc=r.getCell('crit'); cc.font={bold:true,color:{argb:critOf(i)==='leve'?'FF1B1600':'FFFFFFFF'}}; cc.fill={type:'pattern',pattern:'solid',fgColor:{argb:critColor[critOf(i)]}};
@@ -780,15 +780,46 @@ function mergeItems(a,b){ const ta=a.updatedAt||a.createdAt||0, tb=b.updatedAt||
   if(est(nw)!=='resuelto'&&est(od)==='resuelto'){ m.estado='resuelto'; m.fechaCierre=od.fechaCierre; m.cerradoPor=od.cerradoPor; m.notaCierre=od.notaCierre||nw.notaCierre; }
   return m; }
 $('btnImportData').onclick=()=>$('fileData').click();
+function hashStr(s){ let x=5381; for(let i=0;i<s.length;i++) x=((x<<5)+x+s.charCodeAt(i))|0; return (x>>>0).toString(36); }
+function cellText(v){ if(v==null) return ''; if(typeof v==='object'){ if(v.richText) return v.richText.map(t=>t.text).join(''); if('text' in v) return cellText(v.text); if('result' in v) return cellText(v.result); if(v instanceof Date) return v.toISOString(); } return String(v).trim(); }
+function parseFecha(s){ const m=String(s||'').match(/(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\D+(\d{1,2}):(\d{2}))?/); if(!m) return 0; return new Date(+m[3],+m[2]-1,+m[1],+(m[4]||0),+(m[5]||0)).getTime(); }
+function u8ToDataURL(buf,ext){ let s=''; const a=new Uint8Array(buf); for(let i=0;i<a.length;i+=8192) s+=String.fromCharCode.apply(null,a.subarray(i,i+8192)); return 'data:image/'+(ext==='png'?'png':'jpeg')+';base64,'+btoa(s); }
+async function parseExcel(f){
+  if(!window.ExcelJS) throw new Error('lib');
+  const wb=new ExcelJS.Workbook(); await wb.xlsx.load(await f.arrayBuffer());
+  const ws=wb.getWorksheet('Incidencias')||wb.worksheets[0]; if(!ws) throw new Error('fmt');
+  const col={}; ws.getRow(1).eachCell((c,n)=>{ col[cellText(c.value).toLowerCase()]=n; });
+  if(!col['obra']||!col['tracker']) throw new Error('fmt');
+  const g=(row,name)=>col[name]?cellText(row.getCell(col[name]).value):'';
+  const imgs={}; try{ ws.getImages().forEach(im=>{ const tl=im.range&&im.range.tl; if(!tl) return; const rowN=Math.floor(tl.nativeRow!=null?tl.nativeRow:tl.row)+1, colN=Math.floor(tl.nativeCol!=null?tl.nativeCol:tl.col)+1;
+    const m=wb.getImage(+im.imageId); if(!m||!m.buffer) return; (imgs[rowN]=imgs[rowN]||[]).push({colN,url:u8ToDataURL(m.buffer,m.extension)}); }); }catch(e){}
+  const after=col['después']||-1; const out=[];
+  for(let n=2;n<=ws.rowCount;n++){ const row=ws.getRow(n); const obra=g(row,'obra'), tracker=g(row,'tracker'), desc=g(row,'descripción'); if(!obra&&!tracker&&!desc) continue;
+    const created=parseFecha(g(row,'fecha'))||Date.now(); const pastilla=g(row,'pastilla');
+    const id=g(row,'id')||('x'+hashStr([obra,pastilla,tracker,created,desc].join('|')));
+    const critTxt=g(row,'criticidad').toLowerCase(); const resuelto=/resuelt/i.test(g(row,'estado'));
+    const lat=parseFloat(g(row,'lat')), lng=parseFloat(g(row,'lng')); let loc=null;
+    if(!isNaN(lat)&&!isNaN(lng)) loc={lat,lng,acc:0}; else { const lc=col['ubicación']?row.getCell(col['ubicación']).value:null; const href=lc&&lc.hyperlink; const mm=href&&href.match(/q=(-?[\d.]+),(-?[\d.]+)/); if(mm) loc={lat:+mm[1],lng:+mm[2],acc:0}; }
+    const ph=[], cp=[];
+    for(const im of (imgs[n]||[]).sort((a,b)=>a.colN-b.colN)){ const img=await loadImage(im.url); const p={pid:'x'+hashStr(im.url.slice(-200)+im.url.length),rev:0,thumb:im.url,full:null,w:img.naturalWidth,h:img.naturalHeight,marked:false}; (im.colN===after?cp:ph).push(p); }
+    out.push({id,obra,pastilla,tracker,desc,tipo:g(row,'tipo'),crit:CRIT[critTxt]?critTxt:'media',estado:resuelto?'resuelto':'pendiente',
+      inspector:g(row,'inspector'),createdAt:created,updatedAt:+g(row,'actualizado')||created,loc,
+      fechaCierre:resuelto?(parseFecha(g(row,'fecha cierre'))||created):null,cerradoPor:resuelto?g(row,'cerrado por'):'',notaCierre:g(row,'comentario cierre'),
+      photos:ph,cierrePhotos:cp,_xlsx:true}); }
+  return {app:'revision-planta',items:out,deleted:[],listas:[]};
+}
+async function parseDataFile(f){ if(/\.xlsx$/i.test(f.name)||f.type.includes('spreadsheet')) return parseExcel(f);
+  const d=JSON.parse(await f.text()); if(d.app!=='revision-planta'||!Array.isArray(d.items)) throw new Error('fmt'); return d; }
 $('fileData').onchange=async e=>{ const files=[...e.target.files]; e.target.value=''; if(!files.length) return;
   let nuevas=0, act=0, igual=0, borr=0, nl=0; const now=Date.now();
   try{ const byId=new Map(items.map(i=>[i.id,i])); const toPut=new Map(); const toDel=new Set();
-    for(const f of files){ const d=JSON.parse(await f.text()); if(d.app!=='revision-planta'||!Array.isArray(d.items)) throw new Error('fmt');
+    for(const f of files){ const d=await parseDataFile(f);
       for(const t of (d.deleted||[])){ if(!t||!t.id) continue; const lt=tombs[t.id]; if(!lt||t.at>lt.at) tombs[t.id]={at:t.at,rx:now,obra:t.obra||''};
         const cur=byId.get(t.id); if(cur&&(cur.updatedAt||cur.createdAt||0)<=t.at){ byId.delete(t.id); toPut.delete(t.id); toDel.add(t.id); borr++; } }
       for(const raw of d.items){ if(!raw||!raw.id) continue; const inc={...raw,photos:(raw.photos||[]).map(photoIn),cierrePhotos:(raw.cierrePhotos||[]).map(photoIn)};
         const tm=tombs[inc.id]; if(tm&&tm.at>=(inc.updatedAt||inc.createdAt||0)){ igual++; continue; }
         const cur=byId.get(inc.id);
+        if(inc._xlsx){ delete inc._xlsx; if(cur){ if((cur.photos||[]).length) inc.photos=cur.photos; if((cur.cierrePhotos||[]).length) inc.cierrePhotos=cur.cierrePhotos; if(!inc.loc) inc.loc=cur.loc; } }
         if(!cur){ nuevas++; inc._rx=now; byId.set(inc.id,inc); toPut.set(inc.id,inc); toDel.delete(inc.id); continue; }
         const m=mergeItems(cur,inc); if(sig(m)===sig(cur)){ igual++; continue; }
         act++; m._rx=now; byId.set(m.id,m); toPut.set(m.id,m); }
@@ -798,7 +829,7 @@ $('fileData').onchange=async e=>{ const files=[...e.target.files]; e.target.valu
     if(nl) await saveListas();
     const msg=`${nuevas} nuevas, ${act} actualizadas${borr?`, ${borr} borradas`:''}${igual?`, ${igual} sin cambios`:''}${nl?' · listas al día':''}`;
     $('dataInfo').textContent='Última importación: '+msg; toast('Importado: '+msg);
-  }catch(err){ toast(err&&err.message==='fmt'?'Ese archivo no es de esta app.':'No se pudo importar el archivo.'); } };
+  }catch(err){ toast(err&&err.message==='fmt'?'Ese archivo no es un Excel o archivo de datos de esta app.':err&&err.message==='lib'?'Abre la app una vez con cobertura para poder leer Excel.':'No se pudo importar el archivo.'); } };
 
 /* ---------------- boot ---------------- */
 loadLast(); nameBanner(); setCrit('media'); setEstado('pendiente'); render();
